@@ -28,7 +28,7 @@ class KhashFoodSpider(scrapy.Spider) :
             item['productUrl'] = product.css('.product-title').css('a::attr(href)').extract_first()
 
 
-            item['imgUrl'] = product.css('img::attr(data-wood-src)').extract_first()
+            item['imgUrl'] = [product.css('img::attr(data-wood-src)').extract_first()]
             multiple_option = False
             if len(product.css('.woocommerce-Price-amount bdi::text').extract()) > 1:
                 multiple_option = True
@@ -51,10 +51,10 @@ class KhashFoodSpider(scrapy.Spider) :
 
         item = response.meta.get('item')
         item['category'] = response.css('.posted_in a::text').extract()
-        # item['category'] = ','.join(map(str, categories))
+        item['category_id'] = ' >> '.join(item['category'])
         item['lang'] = 'ENG'
         item['location'] = 'Dhaka'
-        item['site_name'] = self.base_url
+        item['site_name'] = 'khaasfood.com'
         item['size'] = 'n/a'
         item['details'] = str(response.css('.woocommerce-product-details__short-description div::text').extract_first()).strip()
         if len(item['details']) > 0 :
