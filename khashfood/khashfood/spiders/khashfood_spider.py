@@ -7,7 +7,7 @@ import logging
 
 class KhashFoodSpider(scrapy.Spider) :
 
-    name = 'khashfood'
+    name = 'backup_spider'
     base_url = 'https://www.khaasfood.com/shop/'
     next_page = 1
 
