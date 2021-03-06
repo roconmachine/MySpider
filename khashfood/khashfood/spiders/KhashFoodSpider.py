@@ -21,9 +21,9 @@ class KhashFoodSpider(scrapy.Spider) :
         categories = categories_container.xpath('li')
         for cat in categories :
             arrcatNames = []
-            self.parseCategory(cat, arrcatNames)
+            self.parseCategory(response, cat, arrcatNames)
 
-    def parseCategory(self, cat, arrcatNames) :
+    def parseCategory(self, response,  cat, arrcatNames) :
         if cat.css('.category-name::text').extract_first() == 'All' :
             return
         arrcatNames.append(cat.css('.category-name::text').extract_first())
@@ -36,14 +36,18 @@ class KhashFoodSpider(scrapy.Spider) :
             p_categories_link = cat.css('a::attr(href)').get()
             logging.info(p_categories_link)
             logging.info(arrcatNames)
-            request = scrapy.Request(p_categories_link, callback=self.parseCategoryLink)
+            # option 1
+            # below request is not performing
+            request = scrapy.Request(url=p_categories_link, callback=self.parseCategoryLink)
             request.meta["categories"] = arrcatNames
             yield request
+            # option 2
+            yield response.follow(url= p_categories_link, callback=self.parseCategoryLink, meta={'categories' : arrcatNames})
 
 
 
 
-    def parseCategoryLink(self, response ):
+    def parseCategoryLink(self, response):
 
         crawl_id = getattr(self, "crawl_id", str(uuid.uuid1()))
         products = response.css('div.product-grid-item')
@@ -52,10 +56,12 @@ class KhashFoodSpider(scrapy.Spider) :
             item = ShoppingSiteItem()
             item['crawl_id'] = crawl_id
             item['category'] = response.meta['categories']
+            item['category_id'] = ' >> '.join(item['category'])
+
             item['title'] = product.css('.product-title').css('a::text').extract_first()
             item['productUrl'] = product.css('.product-title').css('a::attr(href)').extract_first()
 
-            item['imgUrl'] = product.css('img::attr(data-wood-src)').extract_first()
+            item['imgUrl'] = [product.css('img::attr(data-wood-src)').extract_first()]
             multiple_option = False
             if len(product.css('.woocommerce-Price-amount bdi::text').extract()) > 1:
                 multiple_option = True
@@ -81,7 +87,7 @@ class KhashFoodSpider(scrapy.Spider) :
         # item['category'] = ','.join(map(str, categories))
         item['lang'] = 'ENG'
         item['location'] = 'Dhaka'
-        item['site_name'] = self.base_url
+        item['site_name'] = 'khaasfood.com'
         item['size'] = 'n/a'
         item['details'] = str(response.css('.woocommerce-product-details__short-description div::text').extract_first()).strip()
         if len(item['details']) > 0 :
