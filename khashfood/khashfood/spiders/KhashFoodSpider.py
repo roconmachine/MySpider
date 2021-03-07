@@ -1,7 +1,9 @@
 import uuid
 import scrapy
 
-from ..items import ShoppingSiteItem
+from ..items import ShoppingSiteItem, Menu
+
+
 
 import logging
 
@@ -10,6 +12,7 @@ class KhashFoodSpider(scrapy.Spider) :
     name = 'khashfood'
     base_url = 'https://www.khaasfood.com/shop/'
     next_page = 1
+    menus  = []
 
 
     def start_requests(self):
@@ -21,10 +24,19 @@ class KhashFoodSpider(scrapy.Spider) :
         categories = categories_container.xpath('li')
         for cat in categories :
             arrcatNames = []
-            self.parseCategory(response, cat, arrcatNames)
+            self.parseCategory( cat, arrcatNames)
 
-    def parseCategory(self, response,  cat, arrcatNames) :
-        if cat.css('.category-name::text').extract_first() == 'All' :
+        # logging.info("menus ........")
+        # menu = self.menus[1]  # for testing purpose
+        for menu in self.menus :
+            logging.info(menu['menuUrl'])
+            logging.info(menu['category'])
+            yield scrapy.Request(url=menu['menuUrl'], callback=self.parseCategoryLink,
+                                 meta={'categories': menu['category'], 'catUrl' : menu['menuUrl']}, dont_filter=True)
+
+    def parseCategory(self,  cat, arrcatNames) :
+
+        if cat.css('.category-name::text').extract_first() == 'All':
             return
         arrcatNames.append(cat.css('.category-name::text').extract_first())
 
@@ -32,17 +44,20 @@ class KhashFoodSpider(scrapy.Spider) :
         if len(children) > 0 :
             for child in children :
                 self.parseCategory(child,arrcatNames)
+                # del arrcatNames[len(arrcatNames) - 1]
+
         else:
             p_categories_link = cat.css('a::attr(href)').get()
-            logging.info(p_categories_link)
-            logging.info(arrcatNames)
-            # option 1
-            # below request is not performing
-            request = scrapy.Request(url=p_categories_link, callback=self.parseCategoryLink)
-            request.meta["categories"] = arrcatNames
-            yield request
+
+            menu = Menu()
+            menu['category'] = arrcatNames[:]
+            menu['menuUrl'] = p_categories_link
+            self.menus.append(menu)
+            del arrcatNames[len(arrcatNames) - 1]
+            # logging.log("parse : " + url)
+            # yield scrapy.Request(url=url, callback=self.parseCategoryLink , meta={'categories' : arrcatNames})
             # option 2
-            yield response.follow(url= p_categories_link, callback=self.parseCategoryLink, meta={'categories' : arrcatNames})
+            # yield response.follow(url= p_categories_link, callback=self.parseCategoryLink, meta={'categories' : arrcatNames})
 
 
 
@@ -64,20 +79,28 @@ class KhashFoodSpider(scrapy.Spider) :
             item['imgUrl'] = [product.css('img::attr(data-wood-src)').extract_first()]
             multiple_option = False
             if len(product.css('.woocommerce-Price-amount bdi::text').extract()) > 1:
-                multiple_option = True
+                if len(product.css('.price ins bdi::text').extract()) == 1  :
+                    item['price'] = product.css('.price ins bdi::text').extract_first()
+                    item['quantity'] = product.css('.product_quantity::text').extract_first()
+                else :
+                    multiple_option = True
             else:
-                item['price'] = product.css('.woocommerce-Price-amount bdi::text').extract_first()
+                item['price'] = product.css('.price bdi::text').extract_first()
                 item['quantity'] = product.css('.product_quantity::text').extract_first()
 
             # logging.info(item['productUrl'])
             # yield item
-            yield response.follow(str(item['productUrl']), method='GET', callback=self.parse_details,
-                                  meta=dict(item=item, options=multiple_option))
+            yield scrapy.Request(str(item['productUrl']), method='GET', callback=self.parse_details,
+                                  meta=dict(item=item, options=multiple_option), dont_filter=True)
         # end of for loop
+
+        # page / 2 /
         page = response.meta.get('page', 1) + 1
 
-        next_url = self.base_url + 'page/' + str(page) + '/'
-        yield scrapy.Request(next_url, meta=dict(page=page))
+        next_url = response.meta['catUrl'] + 'page/' + str(page) + '/'
+        logging.info("Next page : " + next_url)
+        yield scrapy.Request(url=next_url, callback=self.parseCategoryLink,
+                             meta=dict(page=page, categories= item['category'], catUrl = response.meta['catUrl'] ), dont_filter=True)
 
 
     def parse_details(self, response) :
@@ -97,8 +120,10 @@ class KhashFoodSpider(scrapy.Spider) :
             prices = response.css('.summary-inner bdi::text').extract()
             qts = response.css('select option::attr(value)').extract()
             qts =  [i for i in qts if i]
+            # if len(qts) == len(prices) :
             for price in prices :
                 item['price'] = str(price)
+
                 item['quantity'] = qts[0]
                 del qts[0]
                 yield item

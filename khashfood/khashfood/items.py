@@ -18,6 +18,7 @@ class ImageItem(scrapy.Item):
     images = scrapy.Field()
     image_names = scrapy.Field()
 
+
 class ShoppingSiteItem(scrapy.Item):
     # define the fields for your item here like:
     crawl_id = scrapy.Field()
@@ -33,3 +34,8 @@ class ShoppingSiteItem(scrapy.Item):
     productUrl = scrapy.Field()
     lang = scrapy.Field()
     location = scrapy.Field()
+
+
+class Menu(scrapy.Item):
+    menuUrl = scrapy.Field()
+    category = scrapy.Field()
