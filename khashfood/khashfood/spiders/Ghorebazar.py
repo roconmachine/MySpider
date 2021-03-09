@@ -55,7 +55,7 @@ class Ghorebazar(scrapy.Spider) :
             item['imgUrl'] = product.css('img::attr(src)').get()
             item['quantity'] = product.css('.running-offer-desc::text').extract_first()
             item['price'] = product.css('.product-card-price::text').extract_first()
-            item['productUrl'] = response.meta['menu']['menuUrl']
+            item['productUrl'] = self.base_url + "/" + product.css('h1 a::attr(href)').extract_first()
             item['lang'] = 'ENG'
             item['location'] = 'Dhaka'
             item['site_name'] = 'ghorebazar.com'
