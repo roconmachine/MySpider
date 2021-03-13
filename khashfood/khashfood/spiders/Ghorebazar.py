@@ -52,7 +52,7 @@ class Ghorebazar(scrapy.Spider) :
             item['crawl_id'] = getattr(self, "crawl_id", str(uuid.uuid1()))
             item['category'] = response.meta['menu']['category']
             item['category_id'] = ' >> '.join(item['category'])
-            item['imgUrl'] = product.css('img::attr(src)').get()
+            item['imgUrl'] = [product.css('img::attr(src)').get()]
             item['quantity'] = product.css('.running-offer-desc::text').extract_first()
             item['price'] = product.css('.product-card-price::text').extract_first()
             item['productUrl'] = self.base_url + "/" + product.css('h1 a::attr(href)').extract_first()
